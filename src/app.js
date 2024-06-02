@@ -20,7 +20,7 @@ app.use(compression()); // Nén response
 
 // init db
 require('./dbs/init.mongoDB');
-checkOverLoad();
+// checkOverLoad();
 
 // init routes
 app.use(require('./routes'));

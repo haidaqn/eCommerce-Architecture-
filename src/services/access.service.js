@@ -1,11 +1,11 @@
 'use strict';
 
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const shopModle = require('../models/shop.modle');
 const KeyTokenService = require('./keyToken.service');
 const { createTokenPair } = require('../auth/authUtils');
-const { format } = require('path');
+const { getInfoData } = require('../utils');
 
 const RoleShop = {
     SHOP: 'SHOP',
@@ -36,25 +36,28 @@ class AccessService {
             });
 
             if (newShop) {
-                const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-                    modulusLength: 4096,
-                    publicKeyEncoding: {
-                        type: 'pkcs1',
-                        format: 'pem'
-                    },
-                    privateKeyEncoding: {
-                        type: 'pkcs1',
-                        format: 'pem'
-                    }
-                });
+                // const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+                //     modulusLength: 4096,
+                //     publicKeyEncoding: {
+                //         type: 'pkcs1',
+                //         format: 'pem'
+                //     },
+                //     privateKeyEncoding: {
+                //         type: 'pkcs1',
+                //         format: 'pem'
+                //     }
+                // });
 
-                const publicKeyString = await KeyTokenService.createKeyToken({
+                const privateKey = crypto.randomBytes(64).toString('hex');
+                const publicKey = crypto.randomBytes(64).toString('hex');
+
+                const keyStore = await KeyTokenService.createKeyToken({
                     userID: newShop._id,
-                    publicKey 
+                    publicKey,
+                    privateKey
                 });
 
-
-                if (!publicKeyString) {
+                if (!keyStore) {
                     return {
                         code: 'xxx',
                         messages: 'Error create public key',
@@ -62,23 +65,18 @@ class AccessService {
                     };
                 }
 
-                const publicKeyObject = await crypto.createPublicKey(publicKeyString);
-
-                //  create token pair
-
                 const tokens = await createTokenPair(
                     {
                         userID: newShop._id,
                         email
                     },
-                    publicKeyObject,
+                    publicKey,
                     privateKey
                 );
 
-
                 return {
                     code: 201,
-                    metadata: { shop: newShop, tokens }
+                    metadata: { shop: getInfoData({ filter: ['_id', 'name', 'email'], object: newShop }), tokens }
                 };
             }
 
