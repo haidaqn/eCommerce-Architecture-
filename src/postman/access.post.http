@@ -1,0 +1,10 @@
+### signup
+POST http://localhost:3001/v1/api//shop/signup
+Content-Type: application/json
+
+{
+    "name":"shop hải đăng 1122131",
+    "email":"shophaidaqn21111@gmail.com",
+    "password":"123456@"
+}
+
