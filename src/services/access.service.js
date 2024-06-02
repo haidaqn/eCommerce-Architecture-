@@ -48,13 +48,11 @@ class AccessService {
                     }
                 });
 
-
                 const publicKeyString = await KeyTokenService.createKeyToken({
                     userID: newShop._id,
                     publicKey 
                 });
 
-                console.log(publicKeyString)
 
                 if (!publicKeyString) {
                     return {
@@ -77,7 +75,6 @@ class AccessService {
                     privateKey
                 );
 
-                console.log(tokens);
 
                 return {
                     code: 201,
