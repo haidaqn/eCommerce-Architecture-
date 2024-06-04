@@ -33,18 +33,6 @@ class AccessService {
             });
 
             if (newShop) {
-                // const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-                //     modulusLength: 4096,
-                //     publicKeyEncoding: {
-                //         type: 'pkcs1',
-                //         format: 'pem'
-                //     },
-                //     privateKeyEncoding: {
-                //         type: 'pkcs1',
-                //         format: 'pem'
-                //     }
-                // });
-
                 const privateKey = crypto.randomBytes(64).toString('hex');
                 const publicKey = crypto.randomBytes(64).toString('hex');
 
@@ -55,8 +43,7 @@ class AccessService {
                 });
 
                 if (!keyStore) {
-                    throw new BadRequestError('Error: Shop already registered!');
-
+                    // throw new BadRequestError('Error: Shop already registered!');
                     return {
                         code: 'xxx',
                         messages: 'Error create public key',
