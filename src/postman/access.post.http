@@ -1,5 +1,5 @@
 ### signup
-POST http://localhost:3001/v1/api//shop/signup
+POST http://localhost:3001/v1/api/shop/signup
 Content-Type: application/json
 x-api-key: 1077e19528658d2a786aa48166018813ae7cdeb8320a5d253a2bc65ae82f3dabcbbb221b23ccec8175855fe63c909fdb7acfd73de2ccfa5ef4d6e4026974a9c5
 

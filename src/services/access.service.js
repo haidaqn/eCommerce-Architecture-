@@ -6,6 +6,7 @@ const shopModle = require('../models/shop.modle');
 const KeyTokenService = require('./keyToken.service');
 const { createTokenPair } = require('../auth/authUtils');
 const { getInfoData } = require('../utils');
+const { BadRequestError, ConflictRequestError } = require('../core/error.response');
 
 const RoleShop = {
     SHOP: 'SHOP',
@@ -20,11 +21,7 @@ class AccessService {
             const hodelShop = await shopModle.findOne({ email }).lean();
 
             if (hodelShop) {
-                return {
-                    code: 'xxx',
-                    messages: 'Shop already registered',
-                    status: 'error'
-                };
+                throw new BadRequestError('Error: Shop already registered!');
             }
             const passwordHash = await bcrypt.hash(password, 10);
 
@@ -58,6 +55,8 @@ class AccessService {
                 });
 
                 if (!keyStore) {
+                    throw new BadRequestError('Error: Shop already registered!');
+
                     return {
                         code: 'xxx',
                         messages: 'Error create public key',
