@@ -2,11 +2,13 @@
 
 const bcrypt = require('bcrypt');
 const crypto = require('node:crypto');
-const shopModle = require('../models/shop.modle');
+const shopModel = require('../models/shop.modle');
 const KeyTokenService = require('./keyToken.service');
+const { findByEmail } = require('./shop.service');
 const { createTokenPair } = require('../auth/authUtils');
 const { getInfoData } = require('../utils');
-const { BadRequestError, ConflictRequestError } = require('../core/error.response');
+const { BadRequestError, ConflictRequestError, AuthFialureError } = require('../core/error.response');
+const generateToken = require('../utils/generateToken');
 
 const RoleShop = {
     SHOP: 'SHOP',
@@ -16,16 +18,55 @@ const RoleShop = {
 };
 
 class AccessService {
+    static login = async ({ email, password, refreshToken = null }) => {
+        const foundShop = await findByEmail({ email });
+        if (!foundShop) {
+            throw new BadRequestError('Error: Shop not found!');
+        }
+
+        const match = await bcrypt.compare(password, foundShop.password);
+
+        if (!match) throw new AuthFialureError('Error: Authencaition error!');
+        // generate token
+        const { publicKey, privateKey } = generateToken();
+
+        const tokens = await createTokenPair(
+            {
+                userID: foundShop._id,
+                email
+            },
+            publicKey,
+            privateKey
+        );
+
+        await KeyTokenService.createKeyToken({
+            refreshToken: tokens.refreshToken,
+            publicKey,
+            privateKey,
+            userID: foundShop._id
+        });
+
+        return {
+            shop: getInfoData({
+                filter: ['_id', 'name', 'email'],
+                object: foundShop
+            }),
+            tokens
+        };
+    };
+
+    static logout = async () => {};
+
     static signUp = async ({ name, email, password }) => {
         try {
-            const hodelShop = await shopModle.findOne({ email }).lean();
+            const hodelShop = await shopModel.findOne({ email }).lean();
 
             if (hodelShop) {
                 throw new BadRequestError('Error: Shop already registered!');
             }
             const passwordHash = await bcrypt.hash(password, 10);
 
-            const newShop = await shopModle.create({
+            const newShop = await shopModel.create({
                 name,
                 email,
                 password: passwordHash,
@@ -33,8 +74,10 @@ class AccessService {
             });
 
             if (newShop) {
-                const privateKey = crypto.randomBytes(64).toString('hex');
-                const publicKey = crypto.randomBytes(64).toString('hex');
+                // const privateKey = crypto.randomBytes(64).toString('hex');
+                // const publicKey = crypto.randomBytes(64).toString('hex');
+
+                const { publicKey, privateKey } = generateToken();
 
                 const keyStore = await KeyTokenService.createKeyToken({
                     userID: newShop._id,
@@ -60,10 +103,7 @@ class AccessService {
                     privateKey
                 );
 
-                return {
-                    code: 201,
-                    metadata: { shop: getInfoData({ filter: ['_id', 'name', 'email'], object: newShop }), tokens }
-                };
+                return { shop: getInfoData({ filter: ['_id', 'name', 'email'], object: newShop }), tokens };
             }
 
             return {

@@ -44,4 +44,8 @@ class CreateSuccessResponse extends SuccessResponse {
     }
 }
 
-module.exports = { OK, CreateSuccessResponse };
+module.exports = {
+    OK,
+    CreateSuccessResponse,
+    SuccessResponse
+};

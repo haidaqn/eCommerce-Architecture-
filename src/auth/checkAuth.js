@@ -11,13 +11,13 @@ const apiKey = async (req, res, next) => {
     try {
         const key = req.headers[HEADER.API_KEY];
         if (!key) {
-            return res.status(403).json({ message: 'Unauthorized' });
+            return res.status(403).json({ message: 'Forbidden' });
         }
 
         const objKey = await findById(key);
 
         if (!objKey) {
-            return res.status(403).json({ message: 'Unauthorized' });
+            return res.status(403).json({ message: 'Forbidden' });
         }
 
         req.objKey = objKey;
