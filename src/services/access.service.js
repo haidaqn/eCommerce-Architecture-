@@ -1,14 +1,14 @@
 'use strict';
 
 const bcrypt = require('bcrypt');
-const crypto = require('node:crypto');
 const shopModel = require('../models/shop.modle');
 const KeyTokenService = require('./keyToken.service');
 const { findByEmail } = require('./shop.service');
 const { createTokenPair } = require('../auth/authUtils');
 const { getInfoData } = require('../utils');
-const { BadRequestError, ConflictRequestError, AuthFialureError } = require('../core/error.response');
+const { BadRequestError, AuthFialureError, ForbiddenError } = require('../core/error.response');
 const generateToken = require('../utils/generateToken');
+const { verifyJWT } = require('../auth/authUtils');
 
 const RoleShop = {
     SHOP: 'SHOP',
@@ -18,8 +18,62 @@ const RoleShop = {
 };
 
 class AccessService {
+    static handlerRefreshToken = async (refreshToken) => {
+
+        const foundToken = await KeyTokenService.findByRefreshTokenUser(refreshToken);
+        if (foundToken) {
+            const { userID, email } = await verifyJWT(refreshToken, foundToken.privateKey);
+
+            await KeyTokenService.deleteKeyById(userID);
+
+            throw new ForbiddenError('Something warning happed!! Pls relogin');
+        }
+        
+        const holderToken = await KeyTokenService.findByRefreshToken(refreshToken);
+
+        if (!holderToken) {
+            throw new AuthFialureError('Error: Refresh token not found!');
+        }
+
+        // verify token
+        const { userID, email } = await verifyJWT(refreshToken, holderToken.privateKey);
+
+        const foundShop = await findByEmail({ email });
+
+        if (!foundShop) throw new AuthFialureError('Error: Shop not register!');
+        // cap token moi
+        const tokens = await createTokenPair(
+            {
+                userID,
+                email
+            },
+            holderToken.publicKey,
+            holderToken.privateKey
+        );
+
+        // update token
+
+        await holderToken.updateOne({
+            $set: {
+                refreshToken: tokens.refreshToken
+            },
+            $addToSet: {
+                refreshTokensUsed: refreshToken
+            }
+        });
+
+        return {
+            user: {
+                userID,
+                email
+            },
+            tokens
+        };
+    };
+
     static login = async ({ email, password, refreshToken = null }) => {
         const foundShop = await findByEmail({ email });
+
         if (!foundShop) {
             throw new BadRequestError('Error: Shop not found!');
         }
@@ -55,7 +109,10 @@ class AccessService {
         };
     };
 
-    static logout = async () => {};
+    static logout = async ({ keyStore }) => {
+        const delKey = await KeyTokenService.removeKeyByID(keyStore._id);
+        return delKey;
+    };
 
     static signUp = async ({ name, email, password }) => {
         try {
@@ -74,9 +131,6 @@ class AccessService {
             });
 
             if (newShop) {
-                // const privateKey = crypto.randomBytes(64).toString('hex');
-                // const publicKey = crypto.randomBytes(64).toString('hex');
-
                 const { publicKey, privateKey } = generateToken();
 
                 const keyStore = await KeyTokenService.createKeyToken({
