@@ -18,42 +18,33 @@ const RoleShop = {
 };
 
 class AccessService {
-    static handlerRefreshToken = async (refreshToken) => {
+    static handlerRefreshTokenV2 = async ({ refreshToken, user, keyStore }) => {
+        const { email, userID } = user;
 
-        const foundToken = await KeyTokenService.findByRefreshTokenUser(refreshToken);
-        if (foundToken) {
-            const { userID, email } = await verifyJWT(refreshToken, foundToken.privateKey);
-
+        if (keyStore.refreshTokensUsed.includes(refreshToken)) {
             await KeyTokenService.deleteKeyById(userID);
-
             throw new ForbiddenError('Something warning happed!! Pls relogin');
         }
         
-        const holderToken = await KeyTokenService.findByRefreshToken(refreshToken);
+        if (keyStore.refreshToken !== refreshToken) throw new AuthFialureError('Error: Refresh token not found!');
 
-        if (!holderToken) {
-            throw new AuthFialureError('Error: Refresh token not found!');
-        }
-
-        // verify token
-        const { userID, email } = await verifyJWT(refreshToken, holderToken.privateKey);
-
-        const foundShop = await findByEmail({ email });
+        const foundShop = await findByEmail({
+            email
+        });
 
         if (!foundShop) throw new AuthFialureError('Error: Shop not register!');
+
         // cap token moi
         const tokens = await createTokenPair(
             {
                 userID,
                 email
             },
-            holderToken.publicKey,
-            holderToken.privateKey
+            keyStore.publicKey,
+            keyStore.privateKey
         );
 
-        // update token
-
-        await holderToken.updateOne({
+        await keyStore.updateOne({
             $set: {
                 refreshToken: tokens.refreshToken
             },
@@ -63,13 +54,62 @@ class AccessService {
         });
 
         return {
-            user: {
-                userID,
-                email
-            },
+            user,
             tokens
         };
     };
+
+    // static handlerRefreshToken = async (refreshToken) => {
+    //     const foundToken = await KeyTokenService.findByRefreshTokenUser(refreshToken);
+    //     if (foundToken) {
+    //         const { userID, email } = await verifyJWT(refreshToken, foundToken.privateKey);
+
+    //         await KeyTokenService.deleteKeyById(userID);
+
+    //         throw new ForbiddenError('Something warning happed!! Pls relogin');
+    //     }
+
+    //     const holderToken = await KeyTokenService.findByRefreshToken(refreshToken);
+
+    //     if (!holderToken) {
+    //         throw new AuthFialureError('Error: Refresh token not found!');
+    //     }
+
+    //     // verify token
+    //     const { userID, email } = await verifyJWT(refreshToken, holderToken.privateKey);
+
+    //     const foundShop = await findByEmail({ email });
+
+    //     if (!foundShop) throw new AuthFialureError('Error: Shop not register!');
+    //     // cap token moi
+    //     const tokens = await createTokenPair(
+    //         {
+    //             userID,
+    //             email
+    //         },
+    //         holderToken.publicKey,
+    //         holderToken.privateKey
+    //     );
+
+    //     // update token
+
+    //     await holderToken.updateOne({
+    //         $set: {
+    //             refreshToken: tokens.refreshToken
+    //         },
+    //         $addToSet: {
+    //             refreshTokensUsed: refreshToken
+    //         }
+    //     });
+
+    //     return {
+    //         user: {
+    //             userID,
+    //             email
+    //         },
+    //         tokens
+    //     };
+    // };
 
     static login = async ({ email, password, refreshToken = null }) => {
         const foundShop = await findByEmail({ email });

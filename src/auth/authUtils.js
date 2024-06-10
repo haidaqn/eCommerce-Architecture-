@@ -9,7 +9,8 @@ const KeyTokenService = require('../services/keyToken.service');
 const HEADER = {
     API_KEY: 'x-api-key',
     AUTHORIZATION: 'authorization',
-    CLIENT_ID: 'x-client-id'
+    CLIENT_ID: 'x-client-id',
+    REFRESHTOKOEN: 'x-rtoken-id'
 };
 
 const createTokenPair = async (payload, publicKey, privateKey) => {
@@ -72,6 +73,47 @@ const authencation = asyncHandler(async (req, res, next) => {
     }
 });
 
+const authenticationV2 = asyncHandler(async (req, res, next) => {
+    const userID = req.headers[HEADER.CLIENT_ID];
+    if (!userID) throw new AuthFialureError('Invalid userID!');
+    const keyStore = await KeyTokenService.findByUserID(userID);
+
+    if (!keyStore) throw new UserNotFoundError('Not found keyStore!');
+
+    if (req.headers[HEADER.REFRESHTOKOEN]) {
+        try {
+            const refreshToken = req.headers[HEADER.REFRESHTOKOEN];
+            const decode = JWT.verify(refreshToken, keyStore.privateKey);
+            if (userID !== decode.userID) throw new AuthFialureError('Invalid User!');
+
+            req.keyStore = keyStore;
+            req.user = decode;
+            req.refreshToken = refreshToken;
+
+            return next();
+        } catch (error) {
+            console.log('Error verifying access token');
+            throw error;
+        }
+    }
+
+    const accessToken = req.headers[HEADER.AUTHORIZATION];
+
+    if (!accessToken) throw new AuthFialureError('Invalid accessToken!');
+
+    try {
+        const decode = JWT.verify(accessToken, keyStore.publicKey);
+        if (userID !== decode.userID) throw new AuthFialureError('Invalid User!');
+
+        req.keyStore = keyStore;
+        req.user = decode;
+
+        return next();
+    } catch (error) {
+        console.log('Error verifying access token');
+        throw error;
+    }
+});
 const verifyJWT = async (token, keySecret) => {
     return await JWT.verify(token, keySecret);
 };
@@ -79,5 +121,6 @@ const verifyJWT = async (token, keySecret) => {
 module.exports = {
     createTokenPair,
     authencation,
-    verifyJWT
+    verifyJWT,
+    authenticationV2
 };
