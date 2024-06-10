@@ -2,6 +2,7 @@
 
 const { clothing, product, electronic, furniture } = require('../models/product.modle');
 const { BadRequestError } = require('../core/error.response');
+const { finAllDraftsForShop } = require('../models/repositories/product.repo');
 
 class ProductService {
     static productRegistry = {};
@@ -16,6 +17,11 @@ class ProductService {
         if (!productClass) throw new BadRequestError(`Invalid product ${type}!`);
 
         return await new productClass(payload).createProduct();
+    };
+
+    static finAllDraftsForShop = async ({ product_shop, limit = 50, skip = 0 }) => {
+        const query = { product_shop, isDraft: true };
+        return await finAllDraftsForShop({ query, limit, skip });
     };
 }
 
